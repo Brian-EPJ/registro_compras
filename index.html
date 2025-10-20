@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Compras</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #eaf4f4; /* azul verdoso pastel */
+            color: #2f3e46; /* gris oscuro */
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #cad2c5; /* verde grisáceo suave */
+            color: #2f3e46;
+            text-align: center;
+            padding: 15px;
+            font-size: 1.5em;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        main {
+            padding: 15px;
+        }
+        .total-container {
+            background-color: #a8dadc; /* azul pastel suave */
+            border: 2px solid #99c1b9;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #1d3557;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+        }
+        .compra {
+            background-color: #f1faee; /* blanco verdoso pastel */
+            border: 1px solid #c9d6cf;
+            border-radius: 10px;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .compra h3 {
+            margin: 0;
+            color: #264653;
+        }
+        button {
+            background-color: #457b9d; /* azul medio pastel */
+            border: none;
+            border-radius: 8px;
+            padding: 6px 10px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #1d3557; /* azul oscuro */
+        }
+        input, select {
+            border: 1px solid #a3bcb6;
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #ffffff;
+        }
+        label {
+            font-weight: 600;
+        }
+        .acciones {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        .barra-progreso {
+            width: 100%;
+            background-color: #d8e3e7; /* gris azulado pastel */
+            border-radius: 6px;
+            overflow: hidden;
+            height: 10px;
+            margin-top: 5px;
+        }
+        .progreso {
+            height: 10px;
+            background-color: #457b9d;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .porcentaje-global {
+            margin-top: 8px;
+            font-weight: bold;
+            font-size: 1em;
+            color: #2f3e46;
+        }
+    </style>
+</head>
+<body>
+    <header>Mis Compras</header>
+    <main>
+        <div id="totalMes" class="total-container">Total a pagar a fin de mes: $0</div>
+        <div id="porcentajeGlobal" class="porcentaje-global">Progreso: 0%</div>
+
+        <form id="formCompra">
+            <label>Descripción:</label>
+            <input type="text" id="descripcion" required>
+
+            <label>Precio:</label>
+            <input type="number" id="precio" required>
+
+            <label>¿Usaste cuotas?</label>
+            <select id="usaCuotas">
+                <option value="no">No</option>
+                <option value="si">Sí</option>
+            </select>
+
+            <div id="detalleCuotas" style="display:none;">
+                <label>Total de cuotas:</label>
+                <input type="number" id="totalCuotas" min="1">
+            </div>
+
+            <button type="submit">Agregar compra</button>
+        </form>
+
+        <hr>
+
+        <div id="listaCompras"></div>
+
+        <button id="limpiarTodo">🗑️ Limpiar todo</button>
+    </main>
+
+    <script>
+        const form = document.getElementById('formCompra');
+        const lista = document.getElementById('listaCompras');
+        const usaCuotas = document.getElementById('usaCuotas');
+        const detalleCuotas = document.getElementById('detalleCuotas');
+        const totalMesEl = document.getElementById('totalMes');
+        const porcentajeGlobalEl = document.getElementById('porcentajeGlobal');
+
+        let compras = JSON.parse(localStorage.getItem('compras')) || [];
+
+        usaCuotas.addEventListener('change', () => {
+            detalleCuotas.style.display = usaCuotas.value === 'si' ? 'block' : 'none';
+        });
+
+        function guardar() {
+            localStorage.setItem('compras', JSON.stringify(compras));
+        }
+
+        function calcularTotalMes() {
+            let totalMes = 0;
+            let totalGlobal = 0;
+            compras.forEach(c => {
+                if (c.usaCuotas) {
+                    const valorCuota = c.precio / c.totalCuotas;
+                    totalMes += valorCuota; 
+                    totalGlobal += c.precio;
+                }
+            });
+            totalMesEl.textContent = `Total a pagar a fin de mes: $${totalMes.toFixed(0)}`;
+            const totalPagado = compras.reduce((acc, c) => c.usaCuotas ? acc + (c.precio * (c.cuotasPagadas / c.totalCuotas)) : acc, 0);
+            const porcentaje = totalGlobal ? Math.round((totalPagado / totalGlobal) * 100) : 0;
+            porcentajeGlobalEl.textContent = `Progreso: ${porcentaje}%`;
+        }
+
+        function render() {
+            lista.innerHTML = '';
+            compras.forEach((c, i) => {
+                const div = document.createElement('div');
+                div.className = 'compra';
+
+                const progreso = c.totalCuotas ? Math.min((c.cuotasPagadas / c.totalCuotas) * 100, 100) : 0;
+
+                div.innerHTML = `
+                    <h3>${c.descripcion}</h3>
+                    <p>💰 $${c.precio}</p>
+                    ${c.usaCuotas ? `
+                        <p>Cuotas pagadas: ${c.cuotasPagadas} / ${c.totalCuotas}</p>
+                        <div class="barra-progreso"><div class="progreso" style="width:${progreso}%"></div></div>
+                    ` : ''}
+                    <div class="acciones">
+                        ${c.usaCuotas ? `
+                            <button onclick="modificarCuotas(${i}, 1)">+1 cuota</button>
+                            <button onclick="modificarCuotas(${i}, -1)">-1 cuota</button>
+                        ` : ''}
+                        <button onclick="editar(${i})">✏️ Editar</button>
+                        <button onclick="eliminar(${i})">❌ Eliminar</button>
+                    </div>
+                `;
+                lista.appendChild(div);
+            });
+            calcularTotalMes();
+        }
+
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const descripcion = document.getElementById('descripcion').value;
+            const precio = parseFloat(document.getElementById('precio').value);
+            const usa = usaCuotas.value === 'si';
+            const totalCuotas = usa ? parseInt(document.getElementById('totalCuotas').value) : 0;
+            const cuotasPagadas = 0;
+
+            compras.push({ descripcion, precio, usaCuotas: usa, totalCuotas, cuotasPagadas });
+            guardar();
+            render();
+            form.reset();
+            detalleCuotas.style.display = 'none';
+        });
+
+        function modificarCuotas(i, cambio) {
+            const c = compras[i];
+            c.cuotasPagadas = Math.min(Math.max(c.cuotasPagadas + cambio, 0), c.totalCuotas);
+            guardar();
+            render();
+        }
+
+        function editar(i) {
+            const c = compras[i];
+            document.getElementById('descripcion').value = c.descripcion;
+            document.getElementById('precio').value = c.precio;
+            usaCuotas.value = c.usaCuotas ? 'si' : 'no';
+            detalleCuotas.style.display = c.usaCuotas ? 'block' : 'none';
+            if (c.usaCuotas) {
+                document.getElementById('totalCuotas').value = c.totalCuotas;
+            }
+            compras.splice(i, 1);
+            guardar();
+            render();
+        }
+
+        function eliminar(i) {
+            compras.splice(i, 1);
+            guardar();
+            render();
+        }
+
+        document.getElementById('limpiarTodo').addEventListener('click', () => {
+            if (confirm('¿Eliminar todas las compras?')) {
+                compras = [];
+                guardar();
+                render();
+            }
+        });
+
+        render();
+    </script>
+</body>
+</html>
